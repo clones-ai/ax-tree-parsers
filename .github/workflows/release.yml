@@ -2,7 +2,7 @@ name: Build and Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, 1-build-is-failing-needs-investigation-and-fix]
 
 permissions:
   contents: write
@@ -51,19 +51,15 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
-            artifact_path: target/windows-x64/dump-tree.exe
             artifact_name: dump-tree-windows-x64.exe
           - os: ubuntu-latest
             platform: linux
-            artifact_path: target/linux-x64/dump-tree.js
             artifact_name: dump-tree-linux-x64-arm64.js
           - os: macos-latest
             platform: macos-x64
-            artifact_path: target/macos-x64/dump-tree
             artifact_name: dump-tree-macos-x64
           - os: macos-latest
             platform: macos-arm
-            artifact_path: target/macos-arm64/dump-tree
             artifact_name: dump-tree-macos-arm64
 
     steps:
@@ -102,8 +98,8 @@ jobs:
 
       - name: Build Windows
         if: matrix.platform == 'windows'
+        working-directory: win-ax
         run: |
-          cd win-ax
           echo "Installing dependencies..."
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt --no-cache-dir
@@ -124,32 +120,25 @@ jobs:
             exit 1
           }
 
-          echo "Creating target directory..."
-          New-Item -ItemType Directory -Force -Path ../target/windows-x64
-
-          echo "Copying executable to target..."
-          Copy-Item -Path dist/dump-tree.exe -Destination ../target/windows-x64/
-          if (-not (Test-Path "../target/windows-x64/dump-tree.exe")) {
-            echo "ERROR: Failed to copy executable to target directory"
-            exit 1
-          }
+          echo "Copying build artifact..."
+          Copy-Item -Path "dist/dump-tree.exe" -Destination "../${{ matrix.artifact_name }}"
 
           echo "Windows build completed successfully"
         shell: pwsh
 
       - name: Build Linux
         if: matrix.platform == 'linux'
+        working-directory: linux-ax
         run: |
-          cd linux-ax
           npm install
           npm run build
-          mkdir -p ../target/linux-x64
-          cp dist/dump-tree.js ../target/linux-x64/
+          cp dist/dump-tree.js ../${{ matrix.artifact_name }}
 
       - name: Build macOS
         if: contains(matrix.platform, 'macos')
+        working-directory: mac-ax
         run: |
-          cd mac-ax/macapptree
+          cd macapptree
           if [ "${{ matrix.platform }}" = "macos-arm" ]; then
             ARCH_FLAG="--target-arch arm64"
             pip install -r requirements.txt
@@ -169,14 +158,7 @@ jobs:
             arch --x86_64 pip install --force-reinstall --only-binary :all: pillow
             arch --x86_64 pyinstaller --add-data "./macapptree/macapptree:macapptree" --noconfirm --onefile $ARCH_FLAG dump-tree.py
           fi
-          TARGET_DIR="../target/macos-$([[ "${{ matrix.platform }}" = "macos-arm" ]] && echo "arm64" || echo "x64")"
-          mkdir -p "$TARGET_DIR"
-          cp dist/dump-tree "$TARGET_DIR/"
-
-      - name: Rename Binary
-        run: |
-          mv ${{ matrix.artifact_path }} ${{ matrix.artifact_name }}
-        shell: bash
+          cp dist/dump-tree ../${{ matrix.artifact_name }}
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
@@ -237,7 +219,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.version }}
           name: Release ${{ needs.version.outputs.version }}
