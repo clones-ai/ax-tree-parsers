@@ -2,7 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches: [main, 1-build-is-failing-needs-investigation-and-fix]
+    branches: [main,
+     1-build-is-failing-needs-investigation-and-fix]
 
 permissions:
   contents: write
