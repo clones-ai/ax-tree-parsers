@@ -3,10 +3,8 @@ import argparse
 import time
 from macapptree import get_app_bundle, get_tree
 
-def get_tree_with_display_info(bundle, recording_display_index=None, no_focus_steal=False, max_depth=None):
-    """Wrapper around get_tree that passes display information"""
-    # For now, just call the original get_tree since we can't easily modify the API
-    # The multi-display logic and no-focus mode is now handled inside the extraction process
+def get_tree_with_display_info(bundle, max_depth=None):
+    """Wrapper around get_tree for consistency with the rest of the codebase"""
     return get_tree(bundle, max_depth)
 
 from Quartz import (
@@ -17,7 +15,7 @@ from Quartz import (
     kCGWindowBounds
 )
 
-def get_accessibility_tree(recording_display_index=None, no_focus_steal=False):
+def get_accessibility_tree():
     INVALID_WINDOWS=['Window Server', 'Dock', 'Spotlight', 'SystemUIServer', 'ControlCenter', 'NotificationCenter', 'Finder', 'clones']
     options = kCGWindowListOptionOnScreenOnly
     windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
@@ -40,14 +38,13 @@ def get_accessibility_tree(recording_display_index=None, no_focus_steal=False):
     for app in app_names:
         try:
             bundle = get_app_bundle(app)
-            # Pass recording display index and no-focus mode to get_tree_with_display_info
             out.append({
                 'name': app,
                 'role': 'application',
                 'description': '',
                 'value': '',
                 'bbox': {'x': 0, 'y': 0, 'width': 0, 'height': 0},
-                'children': get_tree_with_display_info(bundle, recording_display_index, no_focus_steal)
+                'children': get_tree_with_display_info(bundle)
             })
         except:
            pass 
@@ -69,7 +66,7 @@ def main():
         # This is just a single capture, but signals the calling system to use 60s intervals
 
     start_time = int(time.time() * 1000)  # JS equivalent of timestamp_millis
-    tree = get_accessibility_tree(args.recording_display, args.no_focus_steal)
+    tree = get_accessibility_tree()
     end_time = int(time.time() * 1000)
     duration = end_time - start_time
 
