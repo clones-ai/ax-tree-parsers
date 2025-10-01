@@ -12,17 +12,31 @@ pip3 install -r requirements.txt
 pip3 install -e .
 ```
 
-Run the script. Remove `-o` to output to stdout.
+## Usage
 
+### Basic Usage
 ```bash
 python3 dump-tree.py -o out.json
 ```
+
+### Recording Mode (Optimized for demos)
+```bash
+# Pre-recording capture (full detail, before video starts)
+python3 dump-tree.py -e --recording-display 0
+
+# During recording (60s intervals, minimal disruption)
+python3 dump-tree.py -e --recording-display 0 --low-frequency
+```
+
+### Options
+- `--recording-display 0`: Specify primary display for recording context
+- `--low-frequency`: Reduce polling frequency for non-intrusive recording
+- `-e`: Output in event format with timing data
 
 The tree will output in `out.json` with the following structure:
 
 ```json
 [
-  {
     {
     "application": "Code",
     "tree": {
