@@ -42,8 +42,10 @@ def extract_system_wide_accessibility_tree(max_depth=None):
     )
     
     if err != ApplicationServices.kAXErrorSuccess or not apps:
-        print(f"Failed to get applications from system element. Error: {err}")
-        return []
+        error_msg = f"Failed to get applications from system element. Error: {err}"
+        print(error_msg)
+        # Raise exception to trigger fallback to legacy method
+        raise RuntimeError(error_msg)
     
     all_windows_data = []
     displays = get_display_info()
