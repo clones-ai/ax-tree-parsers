@@ -33,8 +33,8 @@ jobs:
           echo "All tags:"
           git tag -l
           
-          # Get latest tag or set to v0.0.0 if no tags exist
-          latest_tag=$(git tag --sort=-version:refname | head -n1)
+          # Get latest valid tag (must match v*.*.* pattern) or set to v0.0.0 if no tags exist
+          latest_tag=$(git tag -l | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
           if [ -z "$latest_tag" ]; then
             latest_tag="v0.0.0"
           fi
