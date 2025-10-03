@@ -99,7 +99,7 @@ All scripts output a JSON tree with the following format.
 
 ### Development
 
-1. Setup your virtal python env of choice.
+1. Setup your virtual python env of choice.
 
    ```bash
    # conda
@@ -108,12 +108,11 @@ All scripts output a JSON tree with the following format.
    # or others
    ```
 
-2. Install the requirements for `macapptree` and build the package.
+2. Install the requirements (includes official macapptree package).
 
    ```bash
-   cd macapptree
+   cd mac-ax
    pip3 install -r requirements.txt
-   pip3 install -e .
    ```
 
 3. Run the script and output to `tree.json`
@@ -121,6 +120,13 @@ All scripts output a JSON tree with the following format.
    ```bash
    python3 dump-tree.py -o tree.json
    ```
+
+### Features
+
+- **Focus-steal Prevention**: Uses passive extraction that doesn't interrupt user workflow
+- **Multi-screen Support**: Can filter to specific displays for screen recording
+- **Display Filtering**: `--display-index 0` captures only applications on primary display
+- **Event-driven Architecture**: Optimized for screen recording scenarios
 
 ## win-ax: [Windows UIA](https://learn.microsoft.com/en-us/dotnet/framework/ui-automation/ui-automation-overview)
 
