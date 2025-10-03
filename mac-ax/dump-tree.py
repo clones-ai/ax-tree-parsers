@@ -151,10 +151,10 @@ def get_accessibility_tree_legacy(display_filter=None):
                     'description': f"Display {display_index}",
                     'value': '',
                     'bbox': {
-                        'x': bounds['X'],
-                        'y': bounds['Y'],
-                        'width': bounds['Width'],
-                        'height': bounds['Height']
+                        'x': int(bounds['X']),
+                        'y': int(bounds['Y']),
+                        'width': int(bounds['Width']),
+                        'height': int(bounds['Height'])
                     },
                     'display_index': display_index,
                     'children': []  # No hit-testing = no detailed children

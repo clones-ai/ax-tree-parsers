@@ -120,8 +120,8 @@ def extract_system_wide_accessibility_tree(max_depth=None):
                     window_data = {
                         'app_name': app_name,
                         'display_index': window_display_index,
-                        'position': {'x': position.x, 'y': position.y},
-                        'size': {'width': size.width, 'height': size.height},
+                        'position': {'x': int(position.x), 'y': int(position.y)},
+                        'size': {'width': int(size.width), 'height': int(size.height)},
                         'accessibility_tree': extract_element_tree_passive(window, max_depth)
                     }
                     
