@@ -52,7 +52,7 @@ def extract_system_wide_accessibility_tree(max_depth=None):
     print(f"Available displays: {len(displays)}")
     
     for app in apps:
-        app_name = 'unknown'  # Initialize app_name at start of loop
+        app_name = None  # Initialize app_name at start of loop
         try:
             # Get app name
             err, app_name = ApplicationServices.AXUIElementCopyAttributeValue(
@@ -132,7 +132,7 @@ def extract_system_wide_accessibility_tree(max_depth=None):
                     continue
                     
         except Exception as e:
-            print(f"Error processing app {app_name}: {e}")
+            print(f"Error processing app {app_name or 'unknown'}: {e}")
             continue
     
     return all_windows_data
