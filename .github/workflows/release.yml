@@ -21,9 +21,18 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Fetch tags
+        run: git fetch --tags
       - name: Get version
         id: get_version
         run: |
+          # Debug: List all tags
+          echo "All tags:"
+          git tag -l
+          
           # Get latest tag or set to v0.0.0 if no tags exist
           latest_tag=$(git tag --sort=-version:refname | head -n1)
           if [ -z "$latest_tag" ]; then
