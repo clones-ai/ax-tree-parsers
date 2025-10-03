@@ -41,10 +41,15 @@ def extract_system_wide_accessibility_tree(max_depth=None):
         system_element, ApplicationServices.kAXChildrenAttribute, None
     )
     
-    if err != ApplicationServices.kAXErrorSuccess or not apps:
+    if err != ApplicationServices.kAXErrorSuccess:
         error_msg = f"Failed to get applications from system element. Error: {err}"
         print(error_msg)
-        # Raise exception to trigger fallback to legacy method
+        # Always raise exception for any accessibility error to trigger immediate fallback
+        raise RuntimeError(error_msg)
+    
+    if not apps:
+        error_msg = f"No applications found from system element"
+        print(error_msg)
         raise RuntimeError(error_msg)
     
     all_windows_data = []

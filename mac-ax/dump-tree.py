@@ -114,6 +114,7 @@ def get_accessibility_tree_legacy(display_filter=None):
     Args:
         display_filter: Only capture applications on this display (None = all displays)
     """
+    print(f"[Legacy] Starting CGWindowList extraction at {time.time()}")
     # Reduced filter list - only system components that should never be recorded
     INVALID_WINDOWS=['Window Server', 'Dock', 'Spotlight', 'SystemUIServer', 'ControlCenter', 'NotificationCenter']
     
@@ -182,6 +183,7 @@ def get_accessibility_tree_legacy(display_filter=None):
             'children': windows
         })
     
+    print(f"[Legacy] Completed CGWindowList extraction at {time.time()}")
     return out
 
 def get_accessibility_tree(display_filter=None):
@@ -211,7 +213,15 @@ def main():
     # Choose extraction method based on arguments
     if args.no_focus_steal:
         print("Using no-focus-steal passive extraction mode")
-        tree = get_accessibility_tree_passive(max_depth=10, display_filter=display_filter)
+        print(f"Starting passive extraction at {time.time()}")
+        try:
+            tree = get_accessibility_tree_passive(max_depth=10, display_filter=display_filter)
+            print(f"Passive extraction completed at {time.time()}")
+        except Exception as e:
+            print(f"Passive extraction failed at {time.time()}: {e}")
+            print(f"Starting legacy fallback at {time.time()}")
+            tree = get_accessibility_tree_legacy(display_filter=display_filter)
+            print(f"Legacy fallback completed at {time.time()}")
     else:
         tree = get_accessibility_tree_legacy(display_filter=display_filter)
     
