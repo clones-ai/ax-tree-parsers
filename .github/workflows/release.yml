@@ -34,9 +34,9 @@ jobs:
           minor=$(echo $version | cut -d. -f2)
           patch=$(echo $version | cut -d. -f3)
 
-          # Increment patch version
-          new_patch=$((patch + 1))
-          new_tag="v$major.$minor.$new_patch"
+          # Increment minor version and reset patch to 0
+          new_minor=$((minor + 1))
+          new_tag="v$major.$new_minor.0"
           echo "version=$new_tag" >> $GITHUB_OUTPUT
           echo "New tag will be: $new_tag"
         shell: bash

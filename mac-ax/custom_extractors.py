@@ -200,8 +200,8 @@ def extract_element_tree_passive(element, max_depth=None, current_depth=0):
                 sz = AppKit.NSSizeFromString(str(size))
                 
             attributes['bbox'] = {
-                'x': pos.x, 'y': pos.y,
-                'width': sz.width, 'height': sz.height
+                'x': int(pos.x), 'y': int(pos.y),
+                'width': int(sz.width), 'height': int(sz.height)
             }
         
         # Get children
