@@ -2,6 +2,7 @@ import json
 import argparse
 import time
 from macapptree import get_app_bundle, get_tree
+from custom_extractors import extract_system_wide_accessibility_tree
 
 def get_tree_with_display_info(bundle, max_depth=None):
     """Wrapper around get_tree for consistency with the rest of the codebase"""
@@ -15,47 +16,184 @@ from Quartz import (
     kCGWindowBounds
 )
 
-def get_accessibility_tree():
-    INVALID_WINDOWS=['Window Server', 'Dock', 'Spotlight', 'SystemUIServer', 'ControlCenter', 'NotificationCenter', 'Finder', 'clones']
+def get_accessibility_tree_passive(max_depth=None, display_filter=None):
+    """
+    Get accessibility tree using passive extraction without focus stealing.
+    Supports filtering by specific display for recording purposes.
+    
+    Args:
+        max_depth: Maximum depth for tree traversal
+        display_filter: Only capture applications on this display (None = all displays)
+    """
+    try:
+        all_windows = extract_system_wide_accessibility_tree(max_depth)
+        
+        # Group windows by application
+        apps_data = {}
+        for window_data in all_windows:
+            # Filter by display if specified
+            if display_filter is not None and window_data['display_index'] != display_filter:
+                continue
+                
+            app_name = window_data['app_name']
+            if app_name not in apps_data:
+                apps_data[app_name] = {
+                    'name': app_name,
+                    'role': 'application',
+                    'description': '',
+                    'value': '',
+                    'bbox': {'x': 0, 'y': 0, 'width': 0, 'height': 0},
+                    'children': [],
+                    'displays': set()  # Track which displays this app spans
+                }
+            
+            # Add window data to app
+            window_node = {
+                'role': 'window',
+                'name': f"Window on display {window_data['display_index']}",
+                'description': f"Display {window_data['display_index']}",
+                'value': '',
+                'bbox': {
+                    'x': window_data['position']['x'],
+                    'y': window_data['position']['y'],
+                    'width': window_data['size']['width'],
+                    'height': window_data['size']['height']
+                },
+                'display_index': window_data['display_index'],
+                'children': convert_passive_tree_to_legacy_format(window_data['accessibility_tree'])
+            }
+            
+            apps_data[app_name]['children'].append(window_node)
+            apps_data[app_name]['displays'].add(window_data['display_index'])
+        
+        # Convert to list and add display info to app descriptions
+        result = []
+        for app_name, app_data in apps_data.items():
+            # Skip apps with no windows (after filtering)
+            if not app_data['children']:
+                continue
+                
+            displays_list = sorted(list(app_data['displays']))
+            if display_filter is not None:
+                app_data['description'] = f"Display {display_filter}"
+            else:
+                app_data['description'] = f"Spans displays: {displays_list}"
+            del app_data['displays']  # Remove the set before serialization
+            result.append(app_data)
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error in passive accessibility extraction: {e}")
+        # Fallback to legacy method if passive fails
+        return get_accessibility_tree_legacy(display_filter)
+
+def convert_passive_tree_to_legacy_format(passive_tree):
+    """Convert passive tree format to legacy format for compatibility"""
+    if not passive_tree or 'attributes' not in passive_tree:
+        return []
+    
+    attrs = passive_tree['attributes']
+    children = passive_tree.get('children', [])
+    
+    # Convert to legacy format
+    legacy_node = {
+        'role': attrs.get('role', ''),
+        'name': attrs.get('title', ''),
+        'description': attrs.get('description', ''),
+        'value': attrs.get('value', ''),
+        'bbox': attrs.get('bbox', {'x': 0, 'y': 0, 'width': 0, 'height': 0}),
+        'children': [convert_passive_tree_to_legacy_format(child) for child in children]
+    }
+    
+    return [legacy_node] if legacy_node['role'] else []
+
+def get_accessibility_tree_legacy(display_filter=None):
+    """Legacy method using CGWindowList (fallback) - NO hit-testing
+    
+    Args:
+        display_filter: Only capture applications on this display (None = all displays)
+    """
+    # Reduced filter list - only system components that should never be recorded
+    INVALID_WINDOWS=['Window Server', 'Dock', 'Spotlight', 'SystemUIServer', 'ControlCenter', 'NotificationCenter']
+    
     options = kCGWindowListOptionOnScreenOnly
     windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
-    # Convert windowList to a list of Python dictionaries
-    app_names = []
+    
+    app_windows = {}
+    
     for window in windowList:
-        real = False
+        app_name = None
+        bounds = None
+        
         for key, value in window.items():
-            if key == kCGWindowBounds:
-                # Accept windows on any display (Y can be negative for secondary displays)
-                # Filter out tiny windows (likely system UI elements)
-                if value["Width"] > 100 and value["Height"] > 100:
-                    real = True
-        for key, value in window.items():
-            if key == kCGWindowOwnerName and real == True:
-                if value not in INVALID_WINDOWS:
-                    app_names.append(value)
-
+            if key == kCGWindowOwnerName:
+                app_name = value
+            elif key == kCGWindowBounds:
+                bounds = value
+        
+        if app_name and bounds and app_name not in INVALID_WINDOWS:
+            # Filter out tiny windows (likely system UI elements)
+            if bounds["Width"] > 100 and bounds["Height"] > 100:
+                # Determine display
+                display_index = 0 if bounds['Y'] >= 0 else 1
+                
+                # Filter by display if specified
+                if display_filter is not None and display_index != display_filter:
+                    continue
+                
+                if app_name not in app_windows:
+                    app_windows[app_name] = []
+                
+                app_windows[app_name].append({
+                    'name': f"Window on display {display_index}",
+                    'role': 'window',
+                    'description': f"Display {display_index}",
+                    'value': '',
+                    'bbox': {
+                        'x': bounds['X'],
+                        'y': bounds['Y'],
+                        'width': bounds['Width'],
+                        'height': bounds['Height']
+                    },
+                    'display_index': display_index,
+                    'children': []  # No hit-testing = no detailed children
+                })
+    
+    # Convert to legacy format
     out = []
-    for app in app_names:
-        try:
-            bundle = get_app_bundle(app)
-            out.append({
-                'name': app,
-                'role': 'application',
-                'description': '',
-                'value': '',
-                'bbox': {'x': 0, 'y': 0, 'width': 0, 'height': 0},
-                'children': get_tree_with_display_info(bundle)
-            })
-        except:
-           pass 
+    for app_name, windows in app_windows.items():
+        # Skip apps with no windows (after filtering)
+        if not windows:
+            continue
+            
+        unique_displays = set(w['display_index'] for w in windows)
+        if display_filter is not None:
+            description = f"Display {display_filter}"
+        else:
+            description = f"Spans {len(unique_displays)} display(s)"
+            
+        out.append({
+            'name': app_name,
+            'role': 'application',
+            'description': description,
+            'value': '',
+            'bbox': {'x': 0, 'y': 0, 'width': 0, 'height': 0},
+            'children': windows
+        })
     
     return out
+
+def get_accessibility_tree():
+    """Main accessibility tree function - chooses passive or legacy based on args"""
+    return get_accessibility_tree_legacy()  # Default to legacy for backward compatibility
 
 def main():
     parser = argparse.ArgumentParser(description='Extract accessibility tree from macOS applications')
     parser.add_argument('-o', '--out', help='Output file path (defaults to stdout)')
     parser.add_argument('-e', '--event', help='Output in event format with timing data', action='store_true')
-    parser.add_argument('--recording-display', type=int, help='Display index being used for recording (0=primary)')
+    parser.add_argument('--recording-display', type=int, help='Display index being used for recording (0=primary)', default=None)
+    parser.add_argument('--display-index', type=int, help='Only capture applications on specified display (0=primary)', default=None)
     parser.add_argument('--no-focus-steal', action='store_true', help='Use no-focus-steal mode to avoid disrupting user during recording')
     parser.add_argument('--low-frequency', action='store_true', help='Reduce polling frequency to 60s intervals for recording mode')
     args = parser.parse_args()
@@ -66,7 +204,17 @@ def main():
         # This is just a single capture, but signals the calling system to use 60s intervals
 
     start_time = int(time.time() * 1000)  # JS equivalent of timestamp_millis
-    tree = get_accessibility_tree()
+    
+    # Determine display filter (use recording-display if specified, otherwise display-index)
+    display_filter = args.display_index if args.display_index is not None else args.recording_display
+    
+    # Choose extraction method based on arguments
+    if args.no_focus_steal:
+        print("Using no-focus-steal passive extraction mode")
+        tree = get_accessibility_tree_passive(max_depth=10, display_filter=display_filter)
+    else:
+        tree = get_accessibility_tree_legacy(display_filter=display_filter)
+    
     end_time = int(time.time() * 1000)
     duration = end_time - start_time
 
