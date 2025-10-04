@@ -119,7 +119,9 @@ def get_accessibility_tree_legacy(display_filter=None):
     INVALID_WINDOWS=['Window Server', 'Dock', 'Spotlight', 'SystemUIServer', 'ControlCenter', 'NotificationCenter']
     
     options = kCGWindowListOptionOnScreenOnly
+    print(f"[Legacy] Getting window list at {time.time()}")
     windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
+    print(f"[Legacy] Got {len(windowList) if windowList else 0} windows at {time.time()}")
     
     app_windows = {}
     
@@ -222,6 +224,7 @@ def main():
             print(f"Starting legacy fallback at {time.time()}")
             tree = get_accessibility_tree_legacy(display_filter=display_filter)
             print(f"Legacy fallback completed at {time.time()}")
+            print(f"Legacy returned {len(tree)} applications")
     else:
         tree = get_accessibility_tree_legacy(display_filter=display_filter)
     
@@ -246,6 +249,10 @@ def main():
             f.write(json_output)
     else:
         print(json_output)
+    
+    # Force immediate exit to prevent hanging
+    import sys
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
